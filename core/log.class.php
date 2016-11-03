@@ -1,15 +1,16 @@
 <?php
-/**
- * author 王杰
- * time 2016-11-01
- * version 3.0.1
- * 日志类
- * file log.class.php
- */
-
+// +----------------------------------------------------------------------
+// | author     王杰
+// +----------------------------------------------------------------------
+// | time       2016-11-01
+// +----------------------------------------------------------------------
+// | version    3.0.1
+// +----------------------------------------------------------------------
+// | introduce  日志类
+// +----------------------------------------------------------------------
 namespace core;
 
-defined('ACC')||exit('ACC Denied');
+defined('ACC') || exit('ACC Denied');
 
 class Log {
 
@@ -21,8 +22,8 @@ class Log {
         // 判断是否备份
         $log = self::isBak(); // 计算出日志文件的地址
 
-        $fh = fopen($log,'ab');
-        fwrite($fh,$cont);
+        $fh = fopen($log, 'ab');
+        fwrite($fh, $cont);
         fclose($fh);
     }
 
@@ -33,14 +34,14 @@ class Log {
 
         $log = LOGDIR  . self::LOGFILE;
         $bak = LOGDIR  . date('ymd') . mt_rand(10000,99999) . '.bak';
-        return rename($log,$bak);
+        return rename($log, $bak);
     }
 
     // 读取并判断日志的大小
     public static function isBak() {
         $log = LOGDIR  . self::LOGFILE;
 
-        if(!file_exists($log)) { //如果文件不存在,则创建该文件
+        if (!file_exists($log)) { //如果文件不存在,则创建该文件
             touch($log);    // touch在linux也有此命令,是快速的建立一个文件
             return $log;
         }
@@ -54,7 +55,7 @@ class Log {
         }
 
         // 走到这一行,说明>1M
-        if(!self::bak()) {
+        if (!self::bak()) {
             return $log;
         } else {
             touch($log);

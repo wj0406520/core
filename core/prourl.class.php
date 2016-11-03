@@ -1,23 +1,24 @@
 <?php
-/**
- * author 王杰
- * time 2016-11-01
- * version 3.0.1
- * 路径重写类
- * prourl.class.php
- */
-
+// +----------------------------------------------------------------------
+// | author     王杰
+// +----------------------------------------------------------------------
+// | time       2016-11-01
+// +----------------------------------------------------------------------
+// | version    3.0.1
+// +----------------------------------------------------------------------
+// | introduce  路径重写类
+// +----------------------------------------------------------------------
 namespace core;
 
-defined('ACC')||exit('ACC Denied');
+defined('ACC') || exit('ACC Denied');
 
 
 class Prourl {
 		/**
 		 * URL路由,转为PATHINFO的格式
 		 */
-		static function parseUrl(){
-			if (isset($_SERVER['PATH_INFO'])){
+		public static function parseUrl(){
+			if (isset($_SERVER['PATH_INFO'])) {
 
       			 	//获取 pathinfo
 					$pathinfo = explode('/', trim($_SERVER['PATH_INFO'], "/"));
@@ -32,26 +33,26 @@ class Prourl {
 
 					array_shift($pathinfo); //再将将数组开头的单元移出数组
 
-					for($i=0; $i<count($pathinfo); $i+=2){
-						if(!isset($_GET[$pathinfo[$i]])){
-							$_GET[$pathinfo[$i]]=isset($pathinfo[$i+1])?$pathinfo[$i+1]:'';
+					for ($i=0; $i<count($pathinfo); $i+=2) {
+						if (!isset($_GET[$pathinfo[$i]])) {
+							$_GET[$pathinfo[$i]] = isset($pathinfo[$i+1]) ? $pathinfo[$i+1] : '';
 						}
 					}
 
 			}else{
 
-				if(isset($_SERVER['REQUEST_URI'])){
+				if (isset($_SERVER['REQUEST_URI'])) {
 					$pathinfo = explode('/', trim($_SERVER['REQUEST_URI'], "/"));
 					$_GET['m'] = (!empty($pathinfo[0]) ? $pathinfo[0] : 'index');
 	       			array_shift($pathinfo); //将数组开头的单元移出数组
-	       			if(isset($pathinfo[0])){
-		       			$pathinfo= explode('?', trim($pathinfo[0], "/"));
+	       			if (isset($pathinfo[0])) {
+		       			$pathinfo = explode('?', trim($pathinfo[0], "/"));
 		       			$_GET['a'] = (!empty($pathinfo[0]) ? $pathinfo[0] : 'index');
 	       			}
 				}
 
-				$_GET["m"]= (!empty($_GET['m']) ? $_GET['m']: 'index');    //默认是index模块
-				$_GET["a"]= (!empty($_GET['a']) ? $_GET['a'] : 'index');   //默认是index动作
+				$_GET["m"] = (!empty($_GET['m']) ? $_GET['m'] : 'index');    //默认是index模块
+				$_GET["a"] = (!empty($_GET['a']) ? $_GET['a'] : 'index');   //默认是index动作
 
 				// if($_SERVER["QUERY_STRING"]){
 				// 	$m=$_GET["m"];

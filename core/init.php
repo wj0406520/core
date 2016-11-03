@@ -1,11 +1,13 @@
 <?php
-/**
- * author 王杰
- * time 2016-11-01
- * version 3.0.1
- * 框架初始化
- * init.php
- */
+// +----------------------------------------------------------------------
+// | author     王杰
+// +----------------------------------------------------------------------
+// | time       2016-11-01
+// +----------------------------------------------------------------------
+// | version    3.0.1
+// +----------------------------------------------------------------------
+// | introduce  框架初始化
+// +----------------------------------------------------------------------
 
 // 初始化当前的绝对路径
 // 换成正斜线是因为 win/linux都支持正斜线,而linux不支持反斜线
@@ -16,25 +18,25 @@ session_start();
 date_default_timezone_set('Asia/Shanghai');
 
 //判断是不是可以访问
-defined('ACC')		   || exit('ACC Denied');
+defined('ACC')         || exit('ACC Denied');
 
 //判断有没有入口
-defined('APP')		   || exit('APP Denied');
+defined('APP')         || exit('APP Denied');
 
 //定义访问类型
-defined('IS_POST') 	   || define('IS_POST', $_SERVER['REQUEST_METHOD'] == 'POST');
+defined('IS_POST')     || define('IS_POST', $_SERVER['REQUEST_METHOD'] == 'POST');
 
 //设置根目录
-defined('ROOT') 	   || define('ROOT',str_replace('\\','/',dirname(dirname(__FILE__))) . '/');
+defined('ROOT')        || define('ROOT',str_replace('\\','/',dirname(dirname(__FILE__))) . '/');
 
 //设置模型名称
-defined('MODELS') 	   || define('MODELS','models');
+defined('MODELS')      || define('MODELS','models');
 //设置控制器名称
 defined('CONTROLS')    || define('CONTROLS','controls');
 //设置视图名称
-defined('VIEWS') 	   || define('VIEWS','views');
+defined('VIEWS')       || define('VIEWS','views');
 //设置静态文件名称
-defined('PACK') 	   || define('PACK','pack');
+defined('PACK')        || define('PACK','pack');
 
 //设置模型目录
 defined('MODELSDIR')   || define('MODELSDIR',ROOT.APP.MODELS.'/');
@@ -44,37 +46,37 @@ defined('CONTROLSDIR') || define('CONTROLSDIR',ROOT.APP.CONTROLS.'/');
 defined('VIEWSDIR')    || define('VIEWSDIR',ROOT.APP.VIEWS.'/');
 
 //设置核心文件路径
-defined('CORE') 	   || define('CORE',ROOT.'core/');
+defined('CORE')        || define('CORE',ROOT.'core/');
 
 //设置访问后缀
-defined('ACTION') 	   || define('ACTION','Action');
+defined('ACTION')      || define('ACTION','Action');
 
 //设置工具类文件路径
-defined('TOOL') 	   || define('TOOL',ROOT.'tool/');
+defined('TOOL')        || define('TOOL',ROOT.'tool/');
 
 //视图文件路径
-defined('PATH') 	   || define('PATH', str_replace($_SERVER['DOCUMENT_ROOT'],'',ROOT.APP).PACK.'/');
+defined('PATH')        || define('PATH', str_replace($_SERVER['DOCUMENT_ROOT'],'',ROOT.APP).PACK.'/');
 
 //访问时间
-defined('TIME') 	   || define('TIME', $_SERVER['SCRIPT_NAME']);
+defined('TIME')        || define('TIME', $_SERVER['SCRIPT_NAME']);
 
 //访问路径前缀
-defined('URL') 		   || define('URL', $_SERVER['SCRIPT_NAME']);
+defined('URL') 	       || define('URL', $_SERVER['SCRIPT_NAME']);
 
 //配置文件
-defined('CONFIG') 	   || define('CONFIG',ROOT . 'config/config.inc.php');
+defined('CONFIG')      || define('CONFIG',ROOT . 'config/config.inc.php');
 
 //类型文件
-defined('TYPE') 	   || define('TYPE',ROOT . 'config/type.php');
+defined('TYPE')        || define('TYPE',ROOT . 'config/type.php');
 
 //错误信息文件
 defined('ERRORFILE')   || define('ERRORFILE',ROOT . 'config/error.php');
 
 //数据目录
-defined('DATA') 	   || define('DATA',ROOT . 'data/');
+defined('DATA')        || define('DATA',ROOT . 'data/');
 
 //数据目录
-defined('LOGDIR') 	   || define('LOGDIR',DATA . 'log/');
+defined('LOGDIR')      || define('LOGDIR',DATA . 'log/');
 
 //引入函数文件
 require(CORE . 'function.php');

@@ -1,12 +1,13 @@
 <?php
-/**
- * author 王杰
- * time 2016-11-01
- * version 3.0.1
- * 数据库连贯操作类 接口
- * linksql.class.php
- */
-
+// +----------------------------------------------------------------------
+// | author     王杰
+// +----------------------------------------------------------------------
+// | time       2016-11-01
+// +----------------------------------------------------------------------
+// | version    3.0.1
+// +----------------------------------------------------------------------
+// | introduce  数据库连贯操作类 接口
+// +----------------------------------------------------------------------
 namespace core;
 
 defined('ACC')||exit('ACC Denied');
@@ -55,7 +56,7 @@ abstract class linksql {
     parms $aoo 操作符  and or or
     return this
     */
-    public abstract function where($m,$aoo='AND');
+    public abstract function where($m, $aoo = 'AND');
 
 
     //获取当前表中的字段
@@ -89,14 +90,14 @@ abstract class linksql {
     parms $field  操作的字段 $this->field('id,title,content')
     parms $aoo  only 只查询  no 排除查询
     */
-    public abstract function field($field,$aoo='only');
+    public abstract function field($field, $aoo = 'only');
 
     /*
     检测输入的字段问题
     parms $key  检测字段
     parms $errno 错误编码
     */
-    protected abstract function check_field($key,$errno);
+    protected abstract function check_field($key, $errno);
 
 
 
@@ -146,7 +147,7 @@ abstract class linksql {
     parms $join  字段名 $this->join('think_work','w','RIGHT')
     join方法的第三个参数支持的类型包括：INNER LEFT RIGHT FULL。
     */
-    public abstract function join($join,$as,$in='INNER');
+    public abstract function join($join, $as, $in = 'INNER');
 
     /*
     根据两个或多个表中的列之间的关系

@@ -1,15 +1,16 @@
 <?php
-/**
- * author 王杰
- * time 2016-11-01
- * version 3.0.1
- * 配置文件读写类
- * conf.class.php
- */
-
+// +----------------------------------------------------------------------
+// | author     王杰
+// +----------------------------------------------------------------------
+// | time       2016-11-01
+// +----------------------------------------------------------------------
+// | version    3.0.1
+// +----------------------------------------------------------------------
+// | introduce  配置文件读写类
+// +----------------------------------------------------------------------
 namespace core;
 
-defined('ACC')||exit('ACC Denied');
+defined('ACC') || exit('ACC Denied');
 
 class conf {
 
@@ -32,7 +33,7 @@ class conf {
 
 
     public static function getIns() {
-        if(self::$ins instanceof self) {
+        if (self::$ins instanceof self) {
             return self::$ins;
         } else {
             self::$ins = new self();
@@ -43,7 +44,7 @@ class conf {
 
     // 用魔术方法,读取data内的信息
     public function __get($key) {
-        if(array_key_exists($key,$this->data)) {
+        if (array_key_exists($key, $this->data)) {
             return $this->data[$key];
         } else {
             return null;
@@ -52,7 +53,7 @@ class conf {
 
 
     // 用魔术方法,在运行期,动态增加或改变配置选项
-    public function __set($key,$value) {
+    public function __set($key, $value) {
         $this->data[$key] = $value;
     }
 }
