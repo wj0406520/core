@@ -1,449 +1,521 @@
 <?php
-
-/**
- * 订单模版
- */
-
-
 namespace api\models;
 
 use core;
 
-defined('ACC')||exit('ACC Denied');
+defined("ACC")||exit('ACC Denied');
 
-
-class pay extends core\models
+class pay extends all
 {
 
-    public static $fxarr=array();
-
-    public function generateOrder($arr,$uid)
-    {
-        $array=array();
-
-        if(is_array($arr)){
-            $str=implode(' or id= ',$arr);
-        }else{
-            $str=$arr;
-        }
-
-        $re=$this
-        ->table('gouwuche')
-        ->field('id,money,shopid,type,money,title,psf,sjid,shopName,num,headerpic,state')
-        ->where('userid='.$uid)
-        ->where('id='.$str)
-        ->where('state=1')
-        ->select();
-
-        if(count($arr)!=count($re)){
-            $this->error='cartIdError';
-            return false;
-        }
-        $this
-        ->table('gouwuche')
-        ->where('id='.$str)
-        ->save(array('state'=>2));
-
-        $money=array_column($re,'money');
-        $num=array_column($re,'num');
-        $psf=array_column($re,'psf');
-        $all=0;
-        foreach ($money as $key => $value) {
-            $all+=$num[$key]*$value;
-        }
-        $all=array_sum($psf)+$all;
-        $id=array_column($re,'id');
-
-        $array['orderno']=orderId();
-        $array['createtime']=time();
-        $array['statue']=0;
-        $array['uid']=$uid;
-        $array['totalprice']=$all;
-        $array['realprice']=$all;
-        $array['gwcid']=implode(',', $id);
-        $array['relainfo']=json_encode($re,JSON_UNESCAPED_UNICODE);
-
-        $re=$this
-        ->table('order')
-        ->create($array);
-
-
-        return array('id'=>$this->insert_id());
-    }
-
-
-    public function getlist($arr,$id)
-    {
-        $addressid=$arr['addressid'];
-        $re=$this
-        ->table('order')
-        ->field('gwcid,orderno,realprice,statue,createtime,relainfo')
-        ->where('id='.$arr['id'])
-        ->order('id desc')
-        ->getOne();
-
-        if(!$re){
-            $this->error='orderMiss';
-            return false;
-        }
-        $array['orderno']=$re['orderno'];
-        $array['realprice']=$re['realprice'];
-        $array['createtime']=date('Y-m-d H:i:s',$re['createtime']);
-        $array['statue']=$re['statue'];
-        $arr=explode(',', $re['gwcid']);
-
-        if(is_array($arr)){
-            $str=implode(' or id= ',$arr);
-        }else{
-            $str=$arr;
-        }
-
-        $re=new cart();
-        $a=$re->getlist($str,0);
-        // $a=json_decode($re['relainfo'],true);
-
-        $arr=array(
-                'userid'=>$id,
-            );
-
-        $addressid && $arr['id']=$addressid;
-        $addressid || $arr['isdefault']=1;
-
-        $re=$this
-        ->table('address')
-        ->where($arr)
-        ->getOne();
-
-        $array['order']=$a;
-        if($re){
-            $array['address']=$re;
-        }
-
-        return $array;
-    }
-
-    public function pay($arr,$id)
-    {
-
-
-        $re=$this
-        ->table('order')
-        ->field('gwcid,orderno,realprice,statue,relainfo')
-        ->where('id='.$arr['id'])
-        ->getOne();
-
-        if(!$re){
-            $this->error='orderMiss';
-            return false;
-        }
-        if($re['statue']!=0){
-            $this->error='orderPayd';
-            return false;
-        }
-        $array=$this->coupon($arr,$id,$re['realprice']);
-
-        $relainfo=json_decode($re['relainfo'],true);
-
-        $this->changeShopMoney($relainfo);
-// yhq_type
-// yhq_other
-        // print_r($coupon);
-        // print_r($couponid);
-        // exit;
-
-        $re=$this
-        ->table('address')
-        ->where(array('userid'=>$id,'id'=>$arr['addressid']))
-        ->getOne();
-
-        if(!$re){
-            $this->error='addressMiss';
-            return false;
-        }
-
-        $a=$this->money($arr,$id,$array['realprice']);
-        if(!$a){
-            return false;
-        }
-
-        $array['statue']=1;
-        $array['useraddid']=$arr['addressid'];
-        $array['paytype']=$arr['paytype'];
-        $array['zhifutime']=time();
-        $array['id']=$arr['id'];
-
-
-        $re=$this
-        ->table('order')
-        ->where(array('uid'=>$id))
-        ->create($array);
-
-
-        if(!$re){
-            $this->error='payError';
-            return false;
-        }
-
-        $array=$this->getlist($arr,$id);
-
-
-        return $array;
-    }
-
-    public function money($arr,$id,$money)
-    {
-
-        if($arr['paytype']==4){
-            $usermoney=$this
-            ->table('user')
-            ->field('money')
-            ->find($id);
-            $usermoney['money']-=$money;
-            if($usermoney['money']<0){
-                $this->error='lackMoney';
-                return false;
-            }
-            $usermoney['id']=$id;
-        }
-
-        $moneyLog=array(
-            'userid'=>$id,
-            'changetype'=>1,
-            'money'=>$money,
-            'paytype'=>$arr['paytype'],
-            'typeid'=>$arr['id'],
-            'type'=>1,
-            'createtime'=>time(),
-        );
-        if($arr['paytype']==4){
-            $moneyLog['nowmoney']=$usermoney['money']-$money;
-            $moneyLog['changemoney']=$usermoney['money'];
-            $moneyLog['money']=$money;
-            $this
-            ->table('user')
-            ->create($usermoney);
-        }else{
-            $moneyLog['paymoney']=$money;
-            $moneyLog['money']=$money;
-        }
-        $re=$this
-        ->table('money')
-        ->create($moneyLog);
-        return 1;
-    }
-
-
-    public function checkPay($uid)
-    {
-        $a=$this->table('user')->field('is_renzhen')->find($uid);
-
-        return $a;
-    }
-
-    public function paywx($arr)
-    {
-        // print_r($arr);
-        $a=$this
-        ->table('sp')
-        ->find($arr['shopid']);
-        // print_r($a);
-        if(!$a){
-            $this->error='shopMiss';
-            return false;
-        }
-        $money=$a['jg']*$arr['num']+$a['psf'];
-
-        $re=$this->fenxiao(array('userid'=>$arr['userid'],'classify'=>$a['classify']));
-
-        $re=$this->money(array('paytype'=>$arr['paytype'],'id'=>$arr['shopid']),$arr['userid'],$money);
-        if(!$re){
-            return false;
-        }
-
-        $re=array();
-        $re['id']=$a['id'];
-        $re['money']=$a['jg'];
-        $re['shopid']=$a['id'];
-        $re['type']=2;
-        $re['title']=$a['name'];
-        $re['psf']=$a['psf'];
-        $re['sjid']=$a['publishuserid'];
-        $re['shopName']='';
-        $re['num']=$arr['num'];
-        $re['headerpic']=$a['headeImg'];
-        $re['state']=1;
-
-        $array['fxspid']=$a['id'];
-        $array['useraddid']=$arr['addressid'];
-        $array['paytype']=$arr['paytype'];
-        $array['zhifutime']=time();
-        $array['orderno']=orderId();
-        $array['createtime']=time();
-        $array['statue']=1;
-        $array['uid']=$arr['userid'];
-        $array['totalprice']=$money;
-        $array['realprice']=$money;
-        $array['gwcid']=0;
-        $array['relainfo']=json_encode($re,JSON_UNESCAPED_UNICODE);
-
-        $arr=self::$fxarr;
-
-        if($arr){
-            foreach ($arr as  $value) {
-                switch ($value['level']) {
-                    case '1':
-                        $array['fxoneuid']=$value['userid'];
-                        break;
-                    case '2':
-                        $array['fxtwouid']=$value['userid'];
-                        # code...
-                        break;
-                    case '3':
-                        $array['fxthreeuid']=$value['userid'];
-                        break;
-                    default:
-                        # code...
-                        break;
-                }
-            }
-        }
-
-        $re=$this
-        ->table('order')
-        ->create($array);
-
-        return true;
-    }
-
-    public function fenxiao($arr)
-    {
-        //是分销商的情况下把分销的金额生成
-        $re=$this
-        ->table('fenxiao')
-        ->where($arr)
-        ->getOne();
-
-        if(!$re){
-            return true;
-        }
-        $arr=array();
-        $arr['pid']=$re['pid'];
-        $arr['classify']=$re['classify'];
-        $a=$this->fxsj($arr);
-        if(!$a){
-            return false;
-        }
-
-    }
-
-    public function fxsj($arr)
-    {
-        $re=$this
-        ->table('fenxiao')
-        ->where($arr)
-        ->getOne();
-        if(!$re){
-            $this->error='fxMiss';
-            return false;
-        }
-        self::$fxarr[]=array('level'=>$re['level'],'userid'=>$re['userid']);
-        if($re['level']==1){
-            return true;
-        }
-        $arr=array();
-        $arr['userid']=$re['pid'];
-        $arr['classify']=$re['classify'];
-
-        $this->fxsj($arr);
-    }
-
-    public function coupon($arr,$id,$realprice)
-    {
-
-        $coupon= new coupon();
-        $couponid=$coupon->shopList($arr,$id);
-
-        $couponarr=array_column($couponid,'id');
-        $this->couponid=$code='';
-
-        $array['realprice']=$realprice;
-        if(in_array($arr['couponid'],$couponarr)){
-            foreach ($couponid as $value) {
-                if($value['id']==$arr['couponid']){
-                    $array['yhj_id']=$value['id'];
-                    switch ($value['yhq_type']) {
-                        case '1':
-                            $array['realprice']=$realprice-$value['yhq_other'];
-                            $array['yhxx']=$value['yhq_other'];
-                            break;
-                        case '2':
-                            $array['yhxx']='咖啡券';
-                            $code=token();
-                            break;
-                        case '3':
-                            $array['realprice']=$realprice-($realprice*$value['yhq_other']);
-                            $array['yhxx']=$realprice*$value['yhq_other'];
-                            break;
-                        case '4':
-
-                            $coupon->checkCoupon(array('id'=>$value['yhq_other'],'uid'=>$id));
-                            break;
-                        case '5':
-                            $array['yhxx']=$value['yhq_other'];
-                            break;
-                        default:
-                            # code...
-                            break;
-                    }
-                    $coupon->useCoupon($arr['id'],$arr['couponid'],$value['yhq_type'],$code);
-                    $this->couponid=$arr['couponid'];
-                }
-            }
-        }
-        return $array;
-    }
-
-
-    public function changeShopMoney($arr)
-    {
-        $array=array();
-
-
-        $aff=$this->getCouponMoney();
-
-        $check=$money=0;
-
-        foreach ($arr as $key => $value) {
-            if($aff && $check==0){
-                if($value['type']==$aff['limit_type'] &&
-                    in_array($value['shopid'],explode(',', $aff['type_id'])) &&
-                    ($aff['limit_money']<$value['money']*$value['num'])){
-                    $check=1;
-                    if($aff['yhq_type']==1){
-                        $money=$aff['yhq_other'];
-                    }elseif($aff['yhq_type']==2){
-                        $money=$value['money']*$value['num']*$aff['yhq_other'];
-                    }
-                }
-            }
-            $array['id']=$value['sjid'];
-            $array['money_no']=' money_no + '.($value['money']*$value['num']-$money);
-            $this
-            ->table('user_shop')
-            ->create($array);
-        }
-        return true;
-    }
-
-    public function getCouponMoney()
-    {
-        $re='';
-        if($this->couponid){
-            $info=new coupon();
-            $re=$info->getInfo($this->couponid);
-        }
-        // $this->table('youhuiquan')->find($this->couponid);
-        return $re;
-    }
+
+	public function setMessage($arr,$type){
+
+		$paytool = $this->paytool = new paytool();
+		$this->pay_type = $type;
+		$this->agent_magage = 0;
+		$this->agent_id = 0;
+		$user = $this->getShopUser($arr['mch_id']);
+		$this->bank_type = $user['bank_type'];
+		$user_id = $user['id'];
+		$paytool->key = $user['user_key'];
+		$sign = $paytool->buildQuery($arr);
+
+		if($sign != $arr['sign']){
+			$paytool->putError('signError');
+		}
+
+		if($arr['service']=='pay.alipay.njspay'){
+			$arr['service'] = 'pay.alipay.native';
+		}
+
+		$proport_id = $this->getUserId($user_id);
+
+		$proport = $this->getProport($user_id);
+
+		$bank = $this->getBank($proport_id);
+
+		$create = [
+			'notify_url'=>$arr['notify_url'],
+			'user_order_no'=>$arr['out_trade_no'],
+			'proports_type'=>$type,
+			'money'=>$arr['total_fee']/100,
+
+			'is_show'=>1,
+			'pay_type'=>1,
+			'create_time'=>TIME,
+			'order_no'=>orderId(),
+
+			'user_name'=>$bank['user_name'],
+			'last_number'=>$bank['last_number'],
+			'shop_id'=>$bank['shop_id'],
+			'shop_key'=>$bank['shop_key'],
+			'bank_id'=>$bank['id'],
+			'bank_user_id'=>$bank['user_id'],
+			'accounts_type'=>$bank['accounts_type'],
+
+			'proports'=>$proport['proports'],
+			'agent_id'=>$this->agent_id,
+			'proports_money'=>round(($proport['proports']*$arr['total_fee']/100))/100,
+			'proports_agent_money'=>round(($proport['proports_manage']*$arr['total_fee']/100))/100,
+
+			'user_id'=>$user_id,
+			'user_shop_id'=>$user['user_shop_id'],
+		];
+
+		$pro = $bank['proports'];
+		if($bank['info']){
+			$info = json_decode($bank['info'],true);
+			$info[$type] +=1;
+
+			$re = $this->table('info')->where('type=4')->getOne();
+			$num = $re?$re['message']:50;
+			if($info[$type]>=$num){
+				$pro = explode(',',$bank['proports']);
+				unset($pro[array_search($type, $pro)]);
+				$pro = implode(',',$pro);
+				$info[$type] = 0;
+			}
+		}else{
+			$info = [];
+			$info = array_pad($info, 8, 0);
+			$info[$type] = 1;
+		}
+
+		$b['id'] = $bank['id'];
+		$b['money'] = $bank['money'] + 1;
+		$b['last_time'] = TIME;
+		$b['info'] = jsonEncode($info);
+		$b['proports'] = $pro;
+
+
+		$this->table('bank')->fetchSql(0)->create($b);
+
+		$id = $this->table('pay_log')->create($create);
+
+		isset($bank['sign_agent_no']) && strlen($bank['sign_agent_no'])>5 && $arr['sign_agentno'] = $bank['sign_agent_no'];
+
+		$arr['mch_id'] = $create['shop_id'];
+		$arr['out_trade_no'] = $create['order_no'];
+		$arr['notify_url'] = 'http://'.URL_PATH.'/pay/back';
+
+		$this->paytool->key = $create['shop_key'];
+
+		$re = $this->sign($arr);
+		$user_message = $arr;
+		$arr = $this->paytool->getxml($re);
+		$arr['user_key'] = $user['user_key'];
+		$arr['mch_id'] = $user['user_shop_id'];
+
+		if($arr['status']!=0 || $arr['result_code']!=0){
+			$this->table('error_log')->create([
+					'message'=>$re,
+					'bank_id'=>$bank['id'],
+					'create_time'=>TIME,
+					'pay_id'=>$id,
+					'user_message'=>jsonEncode($user_message)
+				]);
+			$this->table('bank')->create([
+					'is_normal'=>1,
+					'id'=>$bank['id']
+				]);
+		}
+
+		return $arr;
+	}
+	// 支付回调
+	public function alidata($arr){
+		$paytool = $this->paytool = new paytool();
+
+		$pay = $this->getPayLog($arr['out_trade_no']);
+
+		$this->paytool->key = $pay['shop_key'];
+		$sign = $this->paytool->buildQuery($arr);
+
+		if($sign != $arr['sign']){
+			$paytool->putError('signError');
+		}
+		$user = $this->getUser($pay['user_id']);
+
+		if($arr['status']==0 && $arr['result_code']==0){
+			$arr['out_trade_no'] = $pay['user_order_no'];
+			if($pay['pay_type']==1 && $arr['pay_result']==0){
+				$this->backSuccess($arr,$pay,$user);
+			}
+		}
+
+
+		if($arr['status']==0){
+			$arr['mch_id'] = $user['user_shop_id'];
+		}
+		$paytool->key = $user['user_key'];
+		$paytool->url = $pay['notify_url'];
+		$sign = $paytool->buildQuery($arr);
+		$arr['sign'] = $sign;
+		$re = $paytool->linkxml($arr);
+		$this->createData($pay['notify_url'],$re);
+
+		if($paytool->url==URL_PATH.'/pay/back'){
+			print_r($re);
+			exit;
+		}
+
+		$re = $paytool->postxml($re);
+		return $re;
+	}
+
+	public function createData($url,$data){
+		$this->table('back_data')->create(['url'=>$url,'xml'=>$data,'create_time'=>TIME]);
+	}
+
+	public function createBankData($data){
+		$this->table('back_bank')->create(['xml'=>$data,'create_time'=>TIME]);
+	}
+
+	public function backSuccess($arr,$pay,$user){
+
+		$bool = $this->deduction($pay['user_id'],$pay['money']);
+
+		$this->setPayLog($bool,$arr,$pay);
+
+		$this->setBank($pay);
+
+		if($bool){
+			return false;
+		}
+
+		$money = $pay['money']-$pay['proports_money'];
+		$n = 1;
+
+		if($pay['agent_id'] && $pay['agent_id']!=1){
+			$this->agentMoney($pay);
+		}
+
+		$re = $this->dayLog($user['id'],$money,$pay['proports_type']);
+		if($re){
+			$today = 'today_money+'.$money;
+			$num = 'today_num+'.$n;
+		}else{
+			$today = $money;
+			$num = $n;
+		}
+
+		$this->table('user_money')->create([
+				'user_id'=>$user['id'],
+				'change_money'=>$money,
+				'money'=>$money+$user['money'],
+				'before_money'=>$user['money'],
+				'type'=>1,
+				'type_id'=>$pay['id'],
+				'create_time'=>TIME
+			]);
+
+		$this->table('user')->create([
+			'id'=>$user['id'],
+			'money'=>'money+'.$money,
+			'today_money'=>$today,
+			'all_money'=>'all_money+'.$money,
+			'today_num'=>$num,
+			'all_num'=>'all_num+'.$n,
+			'last_time'=>TIME
+			]);
+
+	}
+
+	public function setPayLog($bool,$arr,$pay){
+		// $bool真为扣量
+		$create['pay_type'] = 2;
+		$create['is_show'] = $bool?0:1;
+		$create['is_buckle'] = $bool?1:0;
+		$create['pay_time'] = TIME;
+		$create['transaction_no'] = $arr['transaction_id'];
+		$create['out_transaction_no'] = $arr['out_transaction_id'];
+		$create['id'] = $pay['id'];
+		$log_bak = array_merge($pay,$create);
+		unset($log_bak['id']);
+		$this->table('pay_log_bak')->create($log_bak);
+		$this->table('pay_log')->create($create);
+
+		$re = $this->table('deduction')->where([
+			'user_id'=>$pay['user_id'],
+			'is_used'=>1
+			])->getOne();
+		if(!$re){
+			return false;
+		}
+
+		$money = ($re['last_time']>=strtotime(date('Y-m-d',TIME)))?($bool?'money+'.$pay['money']:$re['money']):0;
+		$num = $bool?0:'num+1';
+		$all_money = $bool?'all_money+'.$pay['money']:$re['all_money'];
+
+
+		$this->create([
+				'num'=>$num,
+				'money'=>$money,
+				'last_time'=>TIME,
+				'all_money'=>$all_money,
+				'id'=>$re['id']
+			]);
+
+	}
+
+	public function setBank($arr){
+		$money = $arr['money'];
+		$bank = $this->table('bank')->find($arr['bank_id']);
+
+		if(!$bank){
+			return false;
+		}
+		$date = date('Ymd',TIME);
+
+		$log = $this->table('day_log_bank')->where([
+				'bank_id'=>$bank['id'],
+				'create_data'=>$date
+			])->getOne();
+
+		if($log){
+			$log_bank['id'] = $log['id'];
+			$log_bank['money'] = 'money+'.$money;
+			$log_bank['num'] = 'num+1';
+		}else{
+			$log_bank['create_time'] = TIME;
+			$log_bank['create_data'] = $date;
+			$log_bank['bank_id'] = $bank['id'];
+			$log_bank['money'] = $money;
+			$log_bank['num'] = 1;
+		}
+		$this->create($log_bank);
+
+
+		if($bank['info']){
+			$info = json_decode($bank['info'],true);
+			$info[$arr['proports_type']] =0;
+		}else{
+			$info = [];
+			$info = array_pad($info, 8, 0);
+			$info[$arr['proports_type']] = 0;
+		}
+
+		$b['id'] = $bank['id'];
+		$b['info'] = jsonEncode($info);
+		$b['all_money'] = $money+$bank['all_money'];
+		$this->table('bank')->create($b);
+	}
+
+	public function dayLog($user_id,$money,$type){
+
+		$date = date('Ymd',TIME);
+
+		$log = $this->table('day_log')->where([
+				'user_id'=>$user_id,
+				'create_data'=>$date
+			])->getOne();
+
+		$str = '';
+		switch ($type) {
+			case '1':
+				$str = 'wei_native';
+				break;
+			case '2':
+				$str = 'wei_app';
+				break;
+			case '3':
+				$str = 'wei_gz';
+				break;
+			case '4':
+				$str = 'wei_web';
+				break;
+			case '5':
+				$str = 'ali_native';
+				break;
+			case '6':
+				$str = 'ali_app';
+				break;
+			case '7':
+				$str = 'ali_web';
+				break;
+			default:
+				# code...
+				break;
+		}
+		$arr = [];
+		if($log){
+			$arr['id'] = $log['id'];
+			$arr[$str] = $str.'+'.$money;
+			$arr['all_money'] = 'all_money+'.$money;
+			$arr['num'] = 'num+1';
+		}else{
+			$arr[$str] = $money;
+			$arr['create_time'] = TIME;
+			$arr['create_data'] = $date;
+			$arr['user_id'] = $user_id;
+			$arr['all_money'] = $money;
+			$arr['num'] = 1;
+		}
+
+		$this->create($arr);
+
+		return $log;
+
+	}
+
+	public function agentMoney($pay){
+		$agent_money = $pay['proports_agent_money'];
+		$agent = $this->getUser($pay['agent_id']);
+		$agent['money'] = 'money+'.$agent_money;
+		$all_money = 'all_money+'. $agent_money;
+		$today = ($agent['last_time']>strtotime(date('Y-m-d',TIME)))?'today_money+'.$agent_money:$agent_money;
+
+		$this->table('user')->create([
+			'id'=>$agent['id'],
+			'money'=>$agent['money'],
+			'today_money'=>$today,
+			'all_money'=>$all_money,
+			'last_time'=>TIME
+			]);
+	}
+
+	public function deduction($user_id,$moeny){
+
+		$re = $this->table('deduction')->where([
+			'user_id'=>$user_id,
+			'is_used'=>1
+			])->getOne();
+		if(!$re){
+			return false;
+		}
+
+		if($re['num']<5){
+			return false;
+		}
+
+		$day = $this->table('day_log')->where([
+				'user_id'=>$user_id,
+				'create_data'=>date('Ymd',TIME)
+			])->getOne();
+
+		if(!$day || $day['all_money']==0){
+			return false;
+		}
+		if(($re['money']/$day['all_money'])>($re['percentage']/100)){
+			return false;
+		}
+
+		if($moeny<$re['start_money'] || $moeny>$re['end_money']){
+			return false;
+		}
+		return true;
+	}
+
+
+	public function getPayLog($order_no){
+
+		$re = $this->table('pay_log')->where(['order_no'=>$order_no])->getOne();
+		if(!$re){
+			$this->paytool->putError('error');
+		}
+		return $re;;
+	}
+
+
+	// 支付请求
+	public function sign($arr){
+		// $paytool = new paytool();
+		$arr['sign'] = $this->paytool->buildQuery($arr);
+		$xml = $this->paytool->linkxml($arr);
+		$re = $this->paytool->postxml($xml);
+		return $re;
+	}
+
+	public function getUser($user_id){
+		$re = $this->table('user')->where('id='.$user_id)->getOne();
+		if(!$re){
+			$this->paytool->putError('shopMiss');
+		}
+		if(!$re['user_key']){
+			$this->paytool->putError('userKeyMiss');
+		}
+		return $re;
+	}
+
+	public function getShopUser($user_shop_id){
+		$re = $this
+		->table('user')
+		->where('user_shop_id="'.$user_shop_id.'"')
+		->fetchSql(0)
+		->getOne();
+		if(!$re){
+			$this->paytool->putError('shopMiss');
+		}
+
+		if(!$re['user_key']){
+			$this->paytool->putError('userKeyMiss');
+		}
+		return $re;
+	}
+	public function getBank($user_id){
+
+		$arr = $this
+			->table('bank')
+			->where([
+				'user_id'=>$user_id,
+				'proports'=>['finset'=>$this->pay_type],
+				'is_used'=>1,
+				'is_normal'=>0,
+				'bank_type'=>$this->bank_type,
+			])->order('money asc')
+			->fetchSql(0)
+			->getOne();
+
+		if(!$arr){
+			$this->paytool->putError('bankMiss');
+		}
+		return $arr;
+	}
+	public function getProport($user_id){
+		$arr = $this->table('user_proport')->where([
+				'user_id'=>$user_id,
+				'type'=>$this->pay_type,
+			])->getOne();
+
+		if(!$arr){
+			$re = $this->table('info')->where('type=2')->getOne();
+
+			$proports = ($re&&$re['message'])?$re['message']:3;
+
+			return ['agent'=>1,'proports'=>$proports,'proports_manage'=>0];
+		}
+		if($arr['is_used']==0){
+			$this->paytool->putError('proportNoUsed');
+		}
+		return $arr;
+	}
+	public function getManage($user_id){
+		$arr = $this->table('user_manage')->where([
+			'user_id'=>$user_id
+			])->getOne();
+
+		if($arr && $arr['manage_id']!=1){
+			$re = $this->getProport($arr['manage_id']);
+			$this->agent_magage = $re['proports'];
+			$this->agent_id = $arr['manage_id'];
+		}
+		$user_id = (!$arr)?1:$arr['manage_id'];
+
+		return $user_id;
+	}
+
+
+	public function getUserId($user_id){
+		$proport = $this->getProport($user_id);
+		if($proport['agent']==1){
+			$user_id = $this->getManage($user_id);
+			if($user_id!=1){
+				return $this->getUserId($user_id);
+			}
+		}
+		return $user_id;
+	}
+
 }
 ?>
