@@ -12,11 +12,12 @@ namespace core;
 
 defined('ACC') || exit('ACC Denied');
 
-class models extends linksql {
+class Models extends LinkSql {
 
-    public $str = '';//数据库语句
+    public    $str = '';                  //数据库语句
+    protected $union_str = [];            // union数据库语句
     protected $table_array = array();     // 所有数据表
-    public $table = NULL;                 // 是model所控制的表名
+    public    $table = NULL;              // 是model所控制的表名
     protected $db = NULL;                 // 是引入的mysql对象
     protected $pref = NULL;               // 是表前缀
 
@@ -25,7 +26,7 @@ class models extends linksql {
     protected $where = NULL;              // 是where 操作的字段
     protected $field_array = NULL;        // 是当前表中所有字段
     protected $field = '*';               // 是field 操作的字段
-    protected $main_key = NULL;           // 是field 操作的字段
+    protected $main_key = 'id';           // 是field 操作的字段
     protected $order = NULL;              // 是order 操作的字段
     protected $alias = NULL;              // 是alias 操作的字段
     protected $limit = NULL;              // 是page limit 操作的字段
@@ -36,14 +37,23 @@ class models extends linksql {
     protected $comment = NULL;            // 是comment 操作的字段
     protected $fetch_sql = 0;             // 是fetch_sql 操作的字段默认为0  运行为1
 
+    public    $web = 0;                   //web为1是web页面
+
+    public static $user_id = 0;           //用户id
 
     //初始化函数
     public function __construct($table='')
     {
+
         //引入mysql对象    进行操作
-        $this->db = mysql::getIns();
+        $this->db = Mysql::getIns();
+        //获取当前数据库的前缀
         $this->pref = $this->db->getPref();
-        $this->table_array=$this->db->showTables();
+
+        if(DB_CHECK){
+            //获取当前数据库中所有的表
+            $this->table_array=$this->db->showTables();
+        }
         if ($table) {
             $this->table=$table;
             $this->checkTable();
@@ -54,19 +64,36 @@ class models extends linksql {
     }
 
 
+
+    public function getConf()
+    {
+        return $this->db->getConf();
+    }
+
+
     /*
     判断table是否正确
     */
     protected function checkTable()
     {
-        if (strpos($this->table, $this->pref) === false) {
-            $this->table = $this->pref . $this->table;
+
+        if($this->pref){
+            if (strpos($this->table, $this->pref) === false) {
+                $this->table = $this->pref . $this->table;
+            }
         }
+        if(!DB_CHECK){
+            return true;
+        }
+        //判断表是否存在
         if (!in_array($this->table, $this->table_array)) {
             $this->errno = '10001';
+            //返回错误信息
             $this->error($this->table);
         }
+        //descTables()显示当前表中所有字段，并获取主见名称
         $this->field_array = $this->db->descTables($this->table);
+        //主键
         $this->main_key = $this->db->main_key;
     }
 
@@ -76,6 +103,9 @@ class models extends linksql {
     */
     protected function checkJoinTable($table)
     {
+        if(!DB_CHECK){
+            return true;
+        }
 
         if (!in_array($table, $this->table_array)) {
             $this->errno = '10001';
@@ -88,7 +118,7 @@ class models extends linksql {
     */
     protected function checkField($key, $errno)
     {
-        if (DEBUG == false) {
+        if (DEBUG == false || !DB_CHECK) {
             return true;
         }
         if (!in_array($key, $this->field_array)) {
@@ -99,67 +129,87 @@ class models extends linksql {
     }
 
 
+    /**
+     * [errorMsg 输出错误信息]
+     * @param  string $data [错误带的参数]
+     */
+    public function errorMsg($data = '')
+    {
+      $data = $data ? $data : $this->error;
+      if($this->web){
+        $arr = Error::getError($data, 0);
+        message($arr['msg']);
+      }else{
+        $arr = Error::getError($data, 1);
+      }
+    }
+
     /*
     错误信息
     */
     public function error($msg = '')
     {
-        $str = '';
+        $this->db->boolean = 0;
+        $str = '(' . $this->table . ') ';
         switch ($this->errno) {
             case '10001':
-                $str = 'table error ' . $msg;
+                $str .= 'table error ' . $msg;
                 break;
             case '10002':
-                $str = 'where function field error '. $msg;
+                $str .= 'where function field error '. $msg;
                 break;
 
             case '10003':
-                $str = 'field function field error '. $msg;
+                $str .= 'field function field error '. $msg;
                 break;
 
             case '10004':
-                $str = 'data function field error '. $msg;
+                $str .= 'data function field error '. $msg;
                 break;
 
             case '10005':
-                $str = 'order function field error '. $msg;
+                $str .= 'order function field error '. $msg;
                 break;
 
             case '10006':
-                $str = 'group function field error '. $msg;
+                $str .= 'group function field error '. $msg;
                 break;
 
             case '10008':
-                $str = 'create function field error '. $msg;
+                $str .= 'create function field error '. $msg;
                 break;
 
             case '20001':
-                $str = 'limit function parms error ';
+                $str .= 'limit function parms error ';
                 break;
 
             case '20002':
-                $str = 'page function parms error ';
+                $str .= 'page function parms error ';
                 break;
 
             case '30001':
-                $str = 'create function parms error ';
+                $str .= 'create function parms error ';
                 break;
             case '30002':
-                $str = 'save function parms error ';
+                $str .= 'save function parms error ';
                 break;
             case '30003':
-                $str = 'delete function parms error ';
+                $str .= 'delete function parms error ';
                 break;
             case '30004':
-                $str = 'select function parms error ';
+                $str .= 'select function parms error ';
                 break;
 
             case '40001':
-                $str = 'save no data';
+                $str .= 'save no data';
+                break;
+
+            case '50001':
+                $str .='union no data';
                 break;
 
             default:
-                $str = 'Unknown error';
+                $str .= 'Unknown error';
                 break;
         }
         exit($str);
@@ -232,10 +282,12 @@ class models extends linksql {
                                 break;
 
                             case 'noin':
+                                $v=$this->linkString($v);
                                 $arr[] = $key . ' NOT IN (' . $v . ')';
                                 break;
 
                             case 'in':
+                                $v=$this->linkString($v);
                                 $arr[] = $key . ' IN (' . $v . ')';
                                 break;
 
@@ -250,14 +302,30 @@ class models extends linksql {
                 }
             }
         }
-        $this->link_where($arr, $aoo);
+        $this->linkWhere($arr, $aoo);
         return $this;
+    }
+
+    /*
+    连接字符语句
+    */
+    protected function linkString($data)
+    {
+        if(is_array($data)){
+            foreach ($data as $key => $value) {
+                $data[$key]='"'.$value.'"';
+            }
+            $str=implode(',',$data);
+        }else{
+            $str = $data;
+        }
+        return $str;
     }
 
     /*
     链接where语句
     */
-    protected function link_where($arr, $aoo = 'AND')
+    protected function linkWhere($arr, $aoo = 'AND')
     {
         $str=implode(' ' . $aoo . ' ', $arr);
 
@@ -284,6 +352,11 @@ class models extends linksql {
         return $this->main_key;
     }
 
+    //设置当前表中的主键
+    public function setMainKey()
+    {
+        return $this->main_key;
+    }
 
     /*
     指定操作的数据表
@@ -338,7 +411,7 @@ class models extends linksql {
             $this->checkField($value, '10003');
             $array[] = $str . $value;
         }
-
+        //查询除了$field字段之外的字段
         if($aoo == 'no'){
             $array = array_diff($this->field_array, $array);
         }
@@ -430,12 +503,9 @@ class models extends linksql {
     public function group($group)
     {
 
-        $arr = explode(',', $group);
-        foreach ($arr as $value) {
-            $this->checkField($value, '10007');
-        }
 
         $this->group = ' GROUP BY ' . $group;
+
         return $this;
     }
 
@@ -474,7 +544,7 @@ class models extends linksql {
     根据两个或多个表中的列之间的关系
     要配合jion使用
     parms $field  操作的字段 $this->jionField('w.id=s.fid')
-    $this->table('ssssss')->alias('a')->join('think_work','w','RIGHT')->jionField('w.id=a.fid')->select()
+    $this->table('ssssss')->alias('a')->join('think_work','w','RIGHT')->joinLink('w.id=a.fid')->select()
     select * from ssssss as a right join think_work as w on w.id=a.fid
     */
     public function joinLink($field)
@@ -493,6 +563,19 @@ class models extends linksql {
     {
 
         $this->field = ' ' . $field . ' ';
+        return $this;
+    }
+
+    /*
+    join专用order
+    要配合jion使用
+    parms $order  操作的字段 $this->joinOrder('r.create_time desc')
+
+    */
+    public function joinOrder($order)
+    {
+
+        $this->order = ' ORDER BY ' . $order . ' ';
         return $this;
     }
 
@@ -545,19 +628,20 @@ class models extends linksql {
             }
         }
 
-        if ($crea == 0) {
+        $bool = $crea == 0;
+
+        if ($bool) {
             $rs = $this->autoExecute();
         } else {
             unset($this->data[$this->main_key]);
             $rs = $this->autoExecute('update', ' where ' . $this->main_key . '=' . $crea);
-
         }
 
+        $this->clear();
+
         if ($rs) {
-            $this->clear();
-            return true;
+            return $bool ? $this->db->insertId() : true;
         }else{
-            $this->clear();
             return false;
         }
     }
@@ -579,11 +663,14 @@ class models extends linksql {
             $data = $this->data;
         }
 
-
+        $crea = 0;
         foreach ($data as $key => $value) {
             $this->checkField($key, '10008');
-            $crea = ($key == $this->main_key) ? $value : 0;
+            if($key == $this->main_key && $crea==0){
+                $crea = $value;
+            }
         }
+
         if ($crea == 0) {
             if ($this->where) {
                 $rs = $this->autoExecute('update', $this->where);
@@ -737,6 +824,7 @@ class models extends linksql {
     */
     public function getOne()
     {
+        $this->limit(1);
         $this->linkSql();
         $arr=$this->db->getOne($this->str);
         $this->clear();
@@ -748,6 +836,7 @@ class models extends linksql {
     */
     public function find($id)
     {
+        $this->limit(1);
         $this->where($this->main_key . '=' . $id);
         $this->linkSql();
         $arr = $this->db->getOne($this->str);
@@ -763,7 +852,7 @@ class models extends linksql {
     public function count()
     {
         $this->field = 'count(*) as a';
-        $this->limit = '';
+        $this->limit(1);
         $this->linkSql();
         $arr = $this->db->getOne($this->str);
         $arr = $arr['a'];
@@ -789,6 +878,38 @@ class models extends linksql {
         $this->limit;
     }
 
+    /*
+    连接语句
+    return bool
+    */
+    public function union()
+    {
+
+        $this->linkSql();
+        $this->union_str[] = $this->str;
+        $this->clear();
+        return $this;
+    }
+    /*
+    查询数据
+    return bool
+    */
+    public function unionSelect()
+    {
+        $arr = [];
+        if($this->union_str){
+            foreach ($this->union_str as $value) {
+                $arr[]='select * from ('.$value.') as a';
+            }
+        }else{
+            $this->error(50001);
+        }
+        $this->str = implode(' union ',$arr);
+        $this->str .= $this->limit;
+        $arr = $this->db->getAll($this->str);
+        $this->clear();
+        return $arr;
+    }
     /*
     **清除相关字段
     */
@@ -816,26 +937,23 @@ class models extends linksql {
         return $this->db->insertId();
     }
 
-    /*
-    开启事务
-    */
-    public function autoCommit($bool = false){
-        $this->db->autoCommit($bool);
+
+    /**
+     * [autoCommit 开启事务]
+     * @param  boolean $bool [真假值 真为开启自动提交 假为关闭自动提交]
+     */
+    public function autoCommit($bool = false)
+    {
+        return $this->db->autoCommit($bool);
+    }
+    /**
+     * [commit 提交事务]
+     */
+    public function commit()
+    {
+        return $this->db->commit();
     }
 
-    /*
-    提交事务
-    */
-    public function commit(){
-        $this->db->commit();
-    }
-
-    /*
-    回滚事务
-    */
-    public function rollback(){
-        $this->db->rollback();
-    }
 
     /*
     直接执行sql语句
@@ -851,4 +969,3 @@ class models extends linksql {
     }
 
 }
-

@@ -12,7 +12,7 @@ namespace core;
 
 defined('ACC')||exit('ACC Denied');
 
-abstract class linksql {
+abstract class LinkSql {
 
     //数据库语句
     public $str;
@@ -21,7 +21,7 @@ abstract class linksql {
     /*
     判断table是否正确
     */
-    protected abstract function check_table();
+    protected abstract function checkTable();
 
     /*
     错误信息
@@ -97,7 +97,7 @@ abstract class linksql {
     parms $key  检测字段
     parms $errno 错误编码
     */
-    protected abstract function check_field($key, $errno);
+    protected abstract function checkField($key, $errno);
 
 
 
@@ -219,7 +219,5 @@ abstract class linksql {
     /*
     获取新增的id
     */
-    public abstract function insert_id();
+    public abstract function insertId();
 }
-
-

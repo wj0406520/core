@@ -12,12 +12,12 @@ namespace core;
 
 defined('ACC') || exit('ACC Denied');
 
-class conf {
+class Conf {
 
     //自己实例化
     protected static $ins = null;
 
-    protected $data = array();
+    protected $data = [];
 
     final protected function __construct() {
 
@@ -32,6 +32,10 @@ class conf {
     }
 
 
+    /**
+     * [getIns 实现单例模式，实例化一些参数]
+     * @return [type] [返回自己]
+     */
     public static function getIns() {
         if (self::$ins instanceof self) {
             return self::$ins;

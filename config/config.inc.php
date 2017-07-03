@@ -25,16 +25,6 @@ return [
     'pref' => 't_',         // 数据库表前缀
 
 
-    //短信接口相关配置
-    'account' => 'jksc481',                            //帐号
-
-    'password' => 'ab123456',                          //密码
-
-    'contentleft' => '尊敬的客户，您的验证码是：',     //内容  验证码左边
-
-    'contentright' => '【瀚客网】',                    //内容  验证码右边
-
-    'url' => 'http://sh2.ipyy.com/smsJson.aspx',       //验证码地址
 
     'selfurl' => 'http://www.firstsee.top',            //个人网站主页
 

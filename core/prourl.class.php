@@ -19,40 +19,57 @@ class Prourl {
 		 */
 		public static function parseUrl(){
 			if (isset($_SERVER['PATH_INFO'])) {
+					$name=str_replace('/index.php','',$_SERVER["PATH_INFO"]);
+
+					$url=str_replace($name,'',$_SERVER["REQUEST_URI"]);
 
       			 	//获取 pathinfo
-					$pathinfo = explode('/', trim($_SERVER['PATH_INFO'], "/"));
+					$pathinfo = explode('/', trim($url, "/"));
 
        				// 获取 control
-       				$_GET['m'] = (!empty($pathinfo[0]) ? $pathinfo[0] : 'index');
+       				$m = (!empty($pathinfo[0]) ? $pathinfo[0] : 'index');
 
        				array_shift($pathinfo); //将数组开头的单元移出数组
 
 			       	// 获取 action
-       				$_GET['a'] = (!empty($pathinfo[0]) ? $pathinfo[0] : 'index');
+       				$a = (!empty($pathinfo[0]) ? $pathinfo[0] : 'index');
 
 					array_shift($pathinfo); //再将将数组开头的单元移出数组
 
 					for ($i=0; $i<count($pathinfo); $i+=2) {
-						if (!isset($_GET[$pathinfo[$i]])) {
-							$_GET[$pathinfo[$i]] = isset($pathinfo[$i+1]) ? $pathinfo[$i+1] : '';
-						}
-					}
 
+						if (!isset($_GET[$pathinfo[$i]])) {
+
+							$_GET[$pathinfo[$i]] = isset($pathinfo[$i+1]) ? $pathinfo[$i+1] : '';
+
+						}
+
+					}
 			}else{
 
 				if (isset($_SERVER['REQUEST_URI'])) {
-					$pathinfo = explode('/', trim($_SERVER['REQUEST_URI'], "/"));
-					$_GET['m'] = (!empty($pathinfo[0]) ? $pathinfo[0] : 'index');
+					$name=URL;
+
+					$url=str_replace($name,'',$_SERVER["REQUEST_URI"]);
+
+					$pathinfo = explode('/', trim($url, "/"));
+
+					$m = (!empty($pathinfo[0]) ? $pathinfo[0] : 'index');
+
 	       			array_shift($pathinfo); //将数组开头的单元移出数组
+
 	       			if (isset($pathinfo[0])) {
+
 		       			$pathinfo = explode('?', trim($pathinfo[0], "/"));
-		       			$_GET['a'] = (!empty($pathinfo[0]) ? $pathinfo[0] : 'index');
+
+		       			$a = (!empty($pathinfo[0]) ? $pathinfo[0] : 'index');
+
 	       			}
 				}
 
-				$_GET["m"] = (!empty($_GET['m']) ? $_GET['m'] : 'index');    //默认是index模块
-				$_GET["a"] = (!empty($_GET['a']) ? $_GET['a'] : 'index');   //默认是index动作
+				$m = (!empty($m) ? $m : 'index');    //默认是index模块
+
+				$a = (!empty($a) ? $a : 'index');   //默认是index动作
 
 				// if($_SERVER["QUERY_STRING"]){
 				// 	$m=$_GET["m"];
@@ -65,5 +82,9 @@ class Prourl {
 				// 	header("Location:".$url);
 				// }
 			}
+		    //控制器中的方法名
+		    define('URL_MODEL',$a);
+		    //控制器名称
+		    define('URL_CONTROL',$m);
 		}
 	}

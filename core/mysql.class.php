@@ -12,7 +12,7 @@ namespace core;
 
 defined('ACC') || exit('ACC Denied');
 
-class mysql extends db {
+class Mysql extends Db {
 
     //自身类
     private static $ins = NULL;
@@ -29,18 +29,37 @@ class mysql extends db {
     //拦截因子
     public $num = 0;
 
+    //事务判断
+    public $boolean = 1;
+
+    //事务开启 默认不开启
+    public static $commit = 0;
+
     /**
      * [__construct 实例化]
      */
     protected function __construct()
     {
         //获取配置参数
-        $this->conf = conf::getIns();
+        $this->conf = Conf::getIns();
         //连接数据库
         $this->connect();
         //设置字符集
         $this->setChar();
+
+        AFFAIR && $this->autoCommit();
+
     }
+
+    /**
+     * [__destruct 关闭数据库执行事务]
+     */
+   public function __destruct()
+   {
+        AFFAIR && $this->commit();
+
+        $this->mysqli->close();
+   }
 
     //实例化自身
     public static function getIns()
@@ -56,7 +75,7 @@ class mysql extends db {
     {
         $this->mysqli = new \mysqli($this->conf->host, $this->conf->user, $this->conf->pwd, $this->conf->db);
         if ($this->mysqli->connect_error) {
-            printf("Connect failed: %s\n", $this->mysqli->connect_error);
+            p("Connect failed: %s\n", $this->mysqli->connect_error);
             exit();
         }
     }
@@ -78,17 +97,24 @@ class mysql extends db {
     {
         //如果拦截因子存在输出sql语句
         if ($this->num) {
-           echo $sql;
-           echo '<br/>';
+           p($sql);
         }
         //发送sql语句
         $rs = $this->mysqli->query($sql);
         //如果sql失败  写入log文件
+
+        $this->boolean = $rs && $this->boolean;
+
         if(!$rs){
             debug($sql);
         }
 
         return $rs;
+    }
+
+    public function getConf()
+    {
+        return $this->conf;
     }
 
     //获取数据库前缀
@@ -102,7 +128,7 @@ class mysql extends db {
     {
         $sql = 'show tables';
         $arr = $this->getAll($sql);
-        $array = array();
+        $array = [];
         foreach ($arr as $value) {
             $array[] = $value['Tables_in_' . $this->conf->db];
         }
@@ -118,7 +144,7 @@ class mysql extends db {
     {
         $sql = 'desc ' . $table;
         $arr = $this->getAll($sql);
-        $array = array();
+        $array = [];
         foreach ($arr as $value)
         {
             if ($value['Key'] == 'PRI') {
@@ -162,13 +188,13 @@ class mysql extends db {
     // 返回影响行数的函数
     public function affectedRows()
     {
-        return $this->mysqli->affectedRows;
+        return $this->mysqli->affected_rows;
     }
 
     // 返回最新的auto_increment列的自增长的值
     public function insertId()
     {
-        return $this->mysqli->insertId;
+        return $this->mysqli->insert_id;
     }
 
     /**
@@ -176,15 +202,15 @@ class mysql extends db {
      * @param  boolean $bool [真假值 真为开启自动提交 假为关闭自动提交]
      */
     public function autoCommit($bool = false){
-        $this->mysqli->autoCommit($bool);
+        $this->mysqli->autocommit($bool);
     }
 
     /**
      * [commit 提交事务]
      * @param  [boolean] $boolean [真则提交  假则回滚]
      */
-    public function commit($boolean){
-        if($boolean){
+    public function commit(){
+        if($this->boolean){
             $this->mysqli->commit();
         }else{
             $this->mysqli->rollback();

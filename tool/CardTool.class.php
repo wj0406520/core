@@ -89,4 +89,3 @@ class CardTool{
         return $verify_number;
     }
 }
-?>

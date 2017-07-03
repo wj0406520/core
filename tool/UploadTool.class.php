@@ -20,6 +20,7 @@ class UploadTool{
 					'music'=>array('mp3', 'wmv'),
 					'video'=>array('mp4', 'avi', 'wmv', 'flv'),
 					'zip_file'=>array('zip','rar'),
+					'app'=>array('apk','ipa'),
 					'all'=>array('gif', 'jpg', 'jpeg', 'png', 'pneg', 'bmp','txt', 'doc', 'xls','swf','mp3', 'wmv','mp4', 'avi', 'wmv', 'flv','zip','rar')
 				);
 	 //构造函数， 实例化时直接调用
@@ -139,4 +140,3 @@ class upload_files{
 
   }
 }
-?>

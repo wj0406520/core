@@ -16,7 +16,7 @@ function _addslashes($data) {
      if (get_magic_quotes_gpc() == false) {
       if (is_array($data)){
        foreach ($data as $k => $v){
-        $data[$k] = _addslashes($v);
+        $data[$k] = _addslashes(str_replace('"','',str_replace("'",'',$v)));
        }
       }else{
         $data = addslashes($data);
@@ -45,7 +45,7 @@ function autoload($class) {
     if (is_file($file)) {
         require($file);
     } else {
-        debug('not found class ' . $class);
+        // debug('not found class ' . $class);
     }
 }
 
@@ -59,8 +59,10 @@ function diyDate($data, $type = 0){
     $str = '';
     if ($type == 0) {
        $str = date('Y-m-d', $data);
-    } else {
-       $str = date('Y-m-d H:i:s', $data);
+    } else if ($type == 1){
+       $str = date('Y-m-d H:i', $data);
+    }else{
+         $str = date('Y-m-d H:i:s', $data);
     }
     return $str;
 }
@@ -77,7 +79,7 @@ function diyType($type = ''){
     }
     $arr = include(TYPE);
     if ($type) {
-        if (!in_array($type,$arr)) {
+        if (array_key_exists($type,$arr)) {
             return $arr[$type];
         } else {
             debug('no found type '.$type);
@@ -86,33 +88,14 @@ function diyType($type = ''){
     return $arr;
 }
 
-/**
- * [diyError 获取错误信息]
- * @param  string $type  [错误名称]
- * @return [array]       [错误数据]
- */
-function diyError($type = ''){
-    if (!file_exists(TYPE)) {
-        debug('no found file ' . TYPE);
-        return false;
-    }
-    $arr = include(ERRORFILE);
-    if ($type) {
-        if (!in_array($type,$arr)) {
-            return $arr[$type];
-        } else {
-            debug('no found type '.$type);
-        }
-    }
-    return $arr;
-}
+
 /**
  * [debug 调试工具]
  * @param  string $str [要输出的字符]
  */
 function debug($str = ''){
     if (DEBUG) {
-        echo $str;
+        p($str);
         exit;
     } else {
         Log::write($str);
@@ -123,13 +106,14 @@ function debug($str = ''){
 function accessController(){
 
     $name = str_replace('/', '\\', APP . CONTROLS . '\\');
-    $m = $name . $_GET['m'];
-    $a = $_GET['a'] . ACTION;
-    define('URL_MODEL',$_GET['m']);
-    unset($_GET['m']);
-    unset($_GET['a']);
+    $m = $name . URL_CONTROL;
+    $a =  URL_MODEL. ACTION;
 
+    $file = ROOT . $m . '.' . CONTROLS . '.php';
 
+    if (!is_file($file)) {
+        debug('not found class ' . URL_CONTROL);
+    }
     $ontrol = new $m();
     $arr = get_class_methods($m);
     if (in_array($a, $arr)) {
@@ -141,32 +125,59 @@ function accessController(){
     // call_user_func(array($name.$m, $a));
 }
 
+function jsonEncode($arr){
+    return json_encode($arr, JSON_UNESCAPED_UNICODE);
+}
 
+// 数字变金钱
+function numToMoney($num = 0){
+    if(!$num){
+        return '0.00';
+    }
+    $arr = explode('.', $num);
+    if(count($arr)==1){
+        return $num.'.00';
+    }
+    if(strlen($arr['1'])==1){
+        return $num.'0';
+    }
+    return $num;
+}
 
 //跳转到根目录
 function getRoot($url = ''){
 
-    $str = str_replace('/index.php', '', $_SERVER['SCRIPT_NAME']);
+    if(strpos($url,'http://') === false && strpos($url,'https://') === false){
+        $str=str_replace('/index.php','',$_SERVER['SCRIPT_NAME']);
+        $str=$str.$url;
+    }else{
+        $str=$url;
+    }
+    header('location:' . $str);
+    exit;
+}
 
-    header('location:' . $str . $url);
+function randString($length){
+   $str = '';
+   $strPol = "ABCDEFGHJKLMNPQRSTUVWXY3456789abcdefghijkmnpqrstuvwxy";
+   $max = strlen($strPol)-1;
+
+   for($i=0;$i<$length;$i++){
+    $str.=$strPol[rand(0,$max)];
+   }
+   return $str;
 }
 
 function p(){
     $args = func_get_args();  //获取多个参数
     //多个参数循环输出
     foreach ($args as $arg) {
-        if (is_array($arg)) {
+        if(is_array($arg)){
             print_r($arg);
-            echo '<br>';
-            echo "\r\n";
-        }elseif (is_string($arg)) {
-            echo $arg.'<br>';
-            echo "\r\n";
-        } else {
+        }else{
             var_dump($arg);
-            echo '<br>';
-            echo "\r\n";
         }
+        echo "<br>\r\n";
     }
 }
 
@@ -304,6 +315,33 @@ function pinyinLong($zh){
     return $ret;
 }
 
+/**
+ * [sortDimen 二维数组排序]
+ * @param  [array]  $arrays     [二维数组]
+ * @param  [string]  $sort_key  [二维数组中排序的键]
+ * @param  integer $sort_order  [排序方式1正序2反序]
+ * @return [array]              [排序之后的数组]
+ */
+function sortDimen($arrays,$sort_key,$sort_order=1 ){
+    if(is_array($arrays)){
+        foreach ($arrays as $array){
+            if(is_array($array)){
+                $key_arrays[] = $array[$sort_key];
+            }else{
+                return false;
+            }
+        }
+    }else{
+        return false;
+    }
+    if($sort_order==1){
+        $sort_order = SORT_ASC;
+    }else{
+        $sort_order = SORT_DESC;
+    }
+    array_multisort($key_arrays,$sort_order,SORT_REGULAR,$arrays);
+    return $arrays;
+}
 
 // function is_login(){
 //     if(ACC===1 && !isset($_SESSION['user_id']) && strpos($_SERVER['PHP_SELF'],'login.php')===false){
@@ -322,6 +360,35 @@ function pinyinLong($zh){
 //         Redirect("login.php");
 //         exit;
 //     }
+
+//兼容php5.4版本
+if (!function_exists('array_column')) {
+    function array_column($input, $columnKey, $indexKey = null) {
+        $columnKeyIsNumber = (is_numeric($columnKey)) ? true : false;
+        $indexKeyIsNull = (is_null($indexKey)) ? true : false;
+        $indexKeyIsNumber = (is_numeric($indexKey)) ? true : false;
+        $result = array();
+        foreach ((array) $input as $key => $row) {
+            if ($columnKeyIsNumber) {
+                $tmp = array_slice($row, $columnKey, 1);
+                $tmp = (is_array($tmp) && !empty($tmp)) ? current($tmp) : null;
+            } else {
+                $tmp = isset($row[$columnKey]) ? $row[$columnKey] : null;
+            }
+            if (!$indexKeyIsNull) {
+                if ($indexKeyIsNumber) {
+                    $key = array_slice($row, $indexKey, 1);
+                    $key = (is_array($key) && !empty($key)) ? current($key) : null;
+                    $key = is_null($key) ? 0 : $key;
+                } else {
+                    $key = isset($row[$indexKey]) ? $row[$indexKey] : 0;
+                }
+            }
+            $result[$key] = $tmp;
+        }
+        return $result;
+    }
+ }
 
 //     if(!isset($_GET['tuichu'])){
 //         if(!isset($_GET['id']) && isset($_SESSION['uid']) && strpos($_SERVER['PHP_SELF'],'index.php')!==false){
@@ -371,8 +438,8 @@ function token(){
     return md5(TIME . mt_rand(111111,999999));
 }
 
-function orderId(){
-    return 'M' . strtoupper(substr(md5(TIME), mt_rand(0, 9), 5)) . TIME . mt_rand(111111, 999999);
+function orderId($str='M'){
+    return $str . strtoupper(substr(md5(TIME), mt_rand(0, 9), 5)) . TIME . mt_rand(111111, 999999);
 }
 
 

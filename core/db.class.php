@@ -13,7 +13,7 @@ namespace core;
 defined('ACC') || exit('ACC Denied');
 
 
-abstract class db {
+abstract class Db {
 
     /*
     连接服务器
@@ -49,5 +49,3 @@ abstract class db {
 
 
 }
-
-
